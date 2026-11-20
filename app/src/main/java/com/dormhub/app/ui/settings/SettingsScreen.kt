@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import com.dormhub.app.BuildConfig
 import com.dormhub.app.R
 import com.dormhub.app.data.entity.FixedFee
 import com.dormhub.app.data.entity.PropertySettings
@@ -97,6 +98,9 @@ fun SettingsScreen(
                         if (state.settings.bankName.isNotBlank())
                             "${state.settings.bankName} ${state.settings.bankAccountNumber}"
                         else "-")
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                    SettingsRow("วันออกบิล", "วันที่ ${state.settings.billingDay} ของเดือน")
+                    SettingsRow("วันครบกำหนด", "วันที่ ${state.settings.dueDay} ของเดือน")
                 }
             }
 
@@ -132,6 +136,20 @@ fun SettingsScreen(
             }
             items(state.fixedFees) { fee ->
                 FeeRow(fee = fee, onDelete = { viewModel.deleteFixedFee(fee.id) })
+            }
+
+            // เวอร์ชันแอป
+            item {
+                Box(
+                    modifier = Modifier.fillMaxWidth().padding(top = 16.dp, bottom = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "DormHub v${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
     }

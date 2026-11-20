@@ -24,6 +24,8 @@ data class BillListUiState(
     val isLoading: Boolean = true,
     val isGenerating: Boolean = false,
     val generateError: String? = null,
+    val billingDay: Int = 1,
+    val canGenerate: Boolean = false,   // true เมื่อวันปัจจุบัน >= billingDay
 )
 
 @HiltViewModel
@@ -33,14 +35,32 @@ class BillListViewModel @Inject constructor(
     private val roomRepo: RoomRepository,
     private val tenantRepo: TenantRepository,
     private val rateRepo: RateRepository,
+    private val propertyRepo: PropertyRepository,
     private val meterReadingDao: MeterReadingDao,
 ) : ViewModel() {
 
     val yearMonth: Int = savedStateHandle["yearMonth"] ?: 0
 
-    val uiState: StateFlow<BillListUiState> = billRepo.getBillsForMonth(yearMonth)
-        .map { bills -> BillListUiState(yearMonth = yearMonth, bills = bills, isLoading = false) }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), BillListUiState(yearMonth = yearMonth))
+    val uiState: StateFlow<BillListUiState> = combine(
+        billRepo.getBillsForMonth(yearMonth),
+        propertyRepo.getSettings()
+    ) { bills, settings ->
+        val billingDay = settings?.billingDay ?: 1
+        val today = Calendar.getInstance().get(Calendar.DAY_OF_MONTH)
+        val currentYm = run {
+            val c = Calendar.getInstance()
+            c.get(Calendar.YEAR) * 100 + c.get(Calendar.MONTH) + 1
+        }
+        // ออกบิลได้: ถ้าเป็นเดือนปัจจุบันต้องรอถึง billingDay / เดือนเก่าออกได้เลย
+        val canGenerate = yearMonth < currentYm || today >= billingDay
+        BillListUiState(
+            yearMonth = yearMonth,
+            bills = bills,
+            isLoading = false,
+            billingDay = billingDay,
+            canGenerate = canGenerate,
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), BillListUiState(yearMonth = yearMonth))
 
     private val _generating = MutableStateFlow(false)
     val isGenerating: StateFlow<Boolean> = _generating.asStateFlow()

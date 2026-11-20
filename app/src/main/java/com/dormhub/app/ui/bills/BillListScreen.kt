@@ -93,12 +93,16 @@ fun BillListScreen(
         },
         floatingActionButton = {
             ExtendedFloatingActionButton(
-                onClick = { viewModel.generateBills() },
+                onClick = { if (state.canGenerate) viewModel.generateBills() },
                 icon = {
                     if (generating) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
                     else Icon(Icons.Default.Add, null)
                 },
-                text = { Text("สร้างบิล") }
+                text = { Text("สร้างบิล") },
+                containerColor = if (state.canGenerate)
+                    MaterialTheme.colorScheme.primaryContainer
+                else
+                    MaterialTheme.colorScheme.surfaceVariant
             )
         }
     ) { padding ->
@@ -107,6 +111,21 @@ fun BillListScreen(
                 CircularProgressIndicator()
             }
             return@Scaffold
+        }
+
+        // banner วันออกบิล
+        if (!state.canGenerate) {
+            Surface(
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    "⏰ ออกบิลได้ตั้งแต่วันที่ ${state.billingDay} ของเดือน",
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+            }
         }
 
         LazyColumn(
