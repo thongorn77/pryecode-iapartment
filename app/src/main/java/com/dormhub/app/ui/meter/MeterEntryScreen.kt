@@ -7,8 +7,9 @@
 package com.dormhub.app.ui.meter
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -23,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import com.dormhub.app.ui.util.isWideScreen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -35,6 +37,7 @@ fun MeterEntryScreen(
     val year  = yearMonth / 100
     val month = yearMonth % 100
     val monthLabel = "%04d/%02d".format(year, month)
+    val wide = isWideScreen()
 
     Scaffold(
         topBar = {
@@ -55,31 +58,27 @@ fun MeterEntryScreen(
             return@Scaffold
         }
 
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            if (state.rooms.isEmpty()) {
-                item {
-                    Text(
-                        "ไม่มีห้องพัก",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 32.dp)
+        if (state.rooms.isEmpty()) {
+            Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                Text("ไม่มีห้องพัก", style = MaterialTheme.typography.bodyLarge,
+                     color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        } else {
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(if (wide) 2 else 1),
+                modifier = Modifier.fillMaxSize().padding(padding),
+                contentPadding = PaddingValues(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(state.rooms, key = { it.room.id }) { roomState ->
+                    MeterRoomCard(
+                        roomState = roomState,
+                        onElecCurrentChange = { viewModel.updateElecCurrent(roomState.room.id, it) },
+                        onWaterCurrentChange = { viewModel.updateWaterCurrent(roomState.room.id, it) },
+                        onSave = { viewModel.saveReading(roomState.room.id) }
                     )
                 }
-            }
-
-            items(state.rooms, key = { it.room.id }) { roomState ->
-                MeterRoomCard(
-                    roomState = roomState,
-                    onElecCurrentChange = { viewModel.updateElecCurrent(roomState.room.id, it) },
-                    onWaterCurrentChange = { viewModel.updateWaterCurrent(roomState.room.id, it) },
-                    onSave = { viewModel.saveReading(roomState.room.id) }
-                )
             }
         }
     }

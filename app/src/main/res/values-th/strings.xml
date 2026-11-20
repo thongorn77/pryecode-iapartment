@@ -6,7 +6,7 @@
     ชื่อ key ต้องตรงกับ values/strings.xml ทุกตัว
 -->
 <resources>
-    <string name="app_name">DormHub</string>
+    <string name="app_name">iApartment by Pryecode</string>
 
     <!-- Navigation -->
     <string name="nav_dashboard">หน้าหลัก</string>

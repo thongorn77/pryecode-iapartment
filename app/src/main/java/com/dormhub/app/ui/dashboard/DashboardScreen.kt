@@ -29,6 +29,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.dormhub.app.R
 import com.dormhub.app.ui.navigation.Screen
+import com.dormhub.app.ui.util.isWideScreen
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -40,6 +41,7 @@ fun DashboardScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val thb = NumberFormat.getNumberInstance(Locale("th", "TH"))
+    val wide = isWideScreen()
 
     Scaffold(
         topBar = {
@@ -59,19 +61,28 @@ fun DashboardScreen(
                     Text("การดำเนินการ",
                          style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                     Spacer(Modifier.height(8.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        ActionCard(
-                            label = "จดมิเตอร์",
-                            icon = Icons.Default.Speed,
-                            modifier = Modifier.weight(1f),
-                            onClick = { navController.navigate(Screen.MeterEntry.withYearMonth(state.currentYearMonth)) }
-                        )
-                        ActionCard(
-                            label = "รายการบิล",
-                            icon = Icons.Default.Assignment,
-                            modifier = Modifier.weight(1f),
-                            onClick = { navController.navigate(Screen.BillList.withYearMonth(state.currentYearMonth)) }
-                        )
+                    val actions = listOf(
+                        Triple("จดมิเตอร์", Icons.Default.Speed,
+                            { navController.navigate(Screen.MeterEntry.withYearMonth(state.currentYearMonth)) }),
+                        Triple("รายการบิล", Icons.Default.Assignment,
+                            { navController.navigate(Screen.BillList.withYearMonth(state.currentYearMonth)) }),
+                    )
+                    if (wide) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            actions.forEach { (label, icon, onClick) ->
+                                ActionCard(label = label, icon = icon,
+                                           modifier = Modifier.weight(1f), onClick = onClick)
+                            }
+                            // ช่องว่างให้สมดุลบน tablet landscape
+                            Spacer(Modifier.weight(2f))
+                        }
+                    } else {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            actions.forEach { (label, icon, onClick) ->
+                                ActionCard(label = label, icon = icon,
+                                           modifier = Modifier.weight(1f), onClick = onClick)
+                            }
+                        }
                     }
                 }
             }
