@@ -47,7 +47,7 @@ class MeterEntryViewModel @Inject constructor(
     private val meterDao: MeterReadingDao,
 ) : ViewModel() {
 
-    val yearMonth: Int = savedStateHandle["yearMonth"] ?: 0
+    val yearMonth: Int = savedStateHandle.get<String>("yearMonth")?.toIntOrNull() ?: 0
 
     private val _uiState = MutableStateFlow(MeterEntryUiState(yearMonth = yearMonth))
     val uiState: StateFlow<MeterEntryUiState> = _uiState.asStateFlow()

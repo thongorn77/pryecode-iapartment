@@ -39,7 +39,7 @@ class BillListViewModel @Inject constructor(
     private val meterReadingDao: MeterReadingDao,
 ) : ViewModel() {
 
-    val yearMonth: Int = savedStateHandle["yearMonth"] ?: 0
+    val yearMonth: Int = savedStateHandle.get<String>("yearMonth")?.toIntOrNull() ?: 0
 
     val uiState: StateFlow<BillListUiState> = combine(
         billRepo.getBillsForMonth(yearMonth),
