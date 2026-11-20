@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    colors.xml — สีพื้นฐาน (XML-based)
+    ============================================================
+    ใช้ใน themes.xml เท่านั้น
+    สีหลักของแอปอยู่ใน Color.kt (Compose)
+-->
+<resources>
+    <color name="splash_background">#1565C0</color>
+    <color name="primary">#1565C0</color>
+    <color name="white">#FFFFFF</color>
+</resources>

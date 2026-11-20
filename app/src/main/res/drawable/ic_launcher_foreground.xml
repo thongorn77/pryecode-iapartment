@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- ตัว D สีขาว บน background สีน้ำเงิน — placeholder icon สำหรับ DormHub -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M32,22 L32,86 L52,86 C68,86 76,74 76,54 C76,34 68,22 52,22 Z M44,34 L52,34 C60,34 64,42 64,54 C64,66 60,74 52,74 L44,74 Z" />
+</vector>

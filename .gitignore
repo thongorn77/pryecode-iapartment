@@ -1,0 +1,19 @@
+# .gitignore — ไฟล์ที่ไม่ต้องการเก็บใน Git
+*.iml
+.gradle
+/local.properties
+/.idea
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+
+# keystore (ห้าม commit เด็ดขาด!)
+*.jks
+*.keystore
+keystore.properties
+
+# generated
+app/schemas/

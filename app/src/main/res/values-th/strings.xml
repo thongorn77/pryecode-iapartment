@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    strings.xml (ภาษาไทย) — ข้อความภาษาไทย
+    ============================================================
+    Android จะใช้ไฟล์นี้เมื่อเครื่องตั้งภาษาเป็นไทย
+    ชื่อ key ต้องตรงกับ values/strings.xml ทุกตัว
+-->
+<resources>
+    <string name="app_name">DormHub</string>
+
+    <!-- Navigation -->
+    <string name="nav_dashboard">หน้าหลัก</string>
+    <string name="nav_rooms">ห้องพัก</string>
+    <string name="nav_settings">ตั้งค่า</string>
+    <string name="nav_bills">บิล</string>
+    <string name="nav_outstanding">ค้างชำระ</string>
+
+    <!-- Buttons -->
+    <string name="btn_next">ถัดไป</string>
+    <string name="btn_back">กลับ</string>
+    <string name="btn_finish">เสร็จสิ้น</string>
+    <string name="btn_save">บันทึก</string>
+    <string name="btn_cancel">ยกเลิก</string>
+    <string name="btn_add_tenant">เพิ่มผู้เช่า</string>
+    <string name="btn_move_out">บันทึกย้ายออก</string>
+
+    <!-- Labels -->
+    <string name="label_property_name">ชื่อหอพัก</string>
+    <string name="label_address">ที่อยู่</string>
+    <string name="label_phone">โทรศัพท์</string>
+    <string name="label_total_rooms">ห้องทั้งหมด</string>
+    <string name="label_occupied">มีผู้เช่า</string>
+    <string name="label_vacant">ว่าง</string>
+    <string name="label_total_billed">ออกบิลแล้ว</string>
+    <string name="label_collected">เก็บได้แล้ว</string>
+    <string name="label_outstanding">ค้างชำระ</string>
+
+    <!-- Sections -->
+    <string name="section_room_summary">ห้องพักเดือนนี้</string>
+    <string name="section_billing_summary">สรุปการเงิน</string>
+    <string name="section_expiring_contracts">สัญญาใกล้หมด</string>
+    <string name="section_property_info">ข้อมูลหอพัก</string>
+</resources>

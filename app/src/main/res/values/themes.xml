@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    themes.xml — Theme ของแอป (XML-based, สำหรับ Activity)
+    ============================================================
+    Compose ใช้ DormHubTheme ใน Kotlin แต่ต้องมี XML theme ด้วย
+    สำหรับ window background ก่อน Compose load
+    Theme.DormHub.Splash = ใช้กับ MainActivity เพื่อแสดง Splash Screen
+-->
+<resources>
+    <style name="Theme.DormHub" parent="android:Theme.Material.Light.NoActionBar" />
+
+    <style name="Theme.DormHub.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/splash_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
+        <item name="postSplashScreenTheme">@style/Theme.DormHub</item>
+    </style>
+</resources>

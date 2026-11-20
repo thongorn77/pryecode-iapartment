@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    file_paths.xml — กำหนด path ที่อนุญาตให้ FileProvider แชร์ไฟล์
+    ============================================================
+    ใช้เมื่อต้องการแชร์รูปบิล / ใบเสร็จ ผ่าน LINE หรือ app อื่น
+    cache-path = ไฟล์ชั่วคราวใน getCacheDir()
+    external-files-path = ไฟล์ใน getExternalFilesDir()
+-->
+<paths>
+    <cache-path name="shared_images" path="images/" />
+    <external-files-path name="shared_docs" path="documents/" />
+</paths>
