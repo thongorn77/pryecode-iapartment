@@ -7,16 +7,20 @@
  */
 package com.dormhub.app.ui.dashboard
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Assignment
+import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -24,6 +28,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.dormhub.app.R
+import com.dormhub.app.ui.navigation.Screen
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -48,6 +53,29 @@ fun DashboardScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            // Quick Actions
+            if (state.currentYearMonth > 0) {
+                item {
+                    Text("การดำเนินการ",
+                         style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    Spacer(Modifier.height(8.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        ActionCard(
+                            label = "จดมิเตอร์",
+                            icon = Icons.Default.Speed,
+                            modifier = Modifier.weight(1f),
+                            onClick = { navController.navigate(Screen.MeterEntry.withYearMonth(state.currentYearMonth)) }
+                        )
+                        ActionCard(
+                            label = "รายการบิล",
+                            icon = Icons.Default.Assignment,
+                            modifier = Modifier.weight(1f),
+                            onClick = { navController.navigate(Screen.BillList.withYearMonth(state.currentYearMonth)) }
+                        )
+                    }
+                }
+            }
+
             // สรุปห้องพัก
             item {
                 Text(stringResource(R.string.section_room_summary),
@@ -101,6 +129,31 @@ fun DashboardScreen(
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun ActionCard(
+    label: String,
+    icon: ImageVector,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Card(
+        modifier = modifier.clickable(onClick = onClick),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp).fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Icon(icon, contentDescription = null,
+                 tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                 modifier = Modifier.size(28.dp))
+            Text(label, style = MaterialTheme.typography.labelLarge,
+                 color = MaterialTheme.colorScheme.onPrimaryContainer)
         }
     }
 }
