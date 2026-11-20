@@ -12,12 +12,20 @@
  *   - hilt                 = Dependency Injection
  *   - ksp                  = Kotlin Symbol Processing (แทน KAPT)
  */
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.hilt)
     alias(libs.plugins.ksp)
+}
+
+// อ่าน keystore.properties (ถ้ามี — ไม่มีจะ skip signing)
+val keystorePropsFile = rootProject.file("keystore.properties")
+val keystoreProps = Properties().apply {
+    if (keystorePropsFile.exists()) load(keystorePropsFile.inputStream())
 }
 
 android {
@@ -29,9 +37,20 @@ android {
         applicationId            = "com.dormhub.app"
         minSdk                   = 26
         targetSdk                = 35
-        versionCode              = 2
-        versionName              = "1.2.0"
+        versionCode              = 3
+        versionName              = "1.3.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    if (keystorePropsFile.exists()) {
+        signingConfigs {
+            create("release") {
+                storeFile     = file(keystoreProps["storeFile"] as String)
+                storePassword = keystoreProps["storePassword"] as String
+                keyAlias      = keystoreProps["keyAlias"] as String
+                keyPassword   = keystoreProps["keyPassword"] as String
+            }
+        }
     }
 
     buildTypes {
@@ -41,15 +60,15 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            if (keystorePropsFile.exists()) {
+                signingConfig = signingConfigs.getByName("release")
+            }
+            buildConfigField("Boolean", "IS_DEBUG_PRO_UNLOCKED", "false")
         }
         debug {
             applicationIdSuffix = ".debug"
             isDebuggable        = true
-            // ปลดล็อก Pro ในโหมด debug เพื่อทดสอบ (Phase 6)
             buildConfigField("Boolean", "IS_DEBUG_PRO_UNLOCKED", "true")
-        }
-        release {
-            buildConfigField("Boolean", "IS_DEBUG_PRO_UNLOCKED", "false")
         }
     }
 
