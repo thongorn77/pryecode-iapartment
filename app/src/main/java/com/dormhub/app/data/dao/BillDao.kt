@@ -11,6 +11,12 @@ import com.dormhub.app.data.entity.Bill
 import com.dormhub.app.data.entity.BillStatus
 import kotlinx.coroutines.flow.Flow
 
+data class MonthSummary(
+    val yearMonth: Int,
+    val totalBilled: Long,
+    val totalPaid: Long,
+)
+
 @Dao
 interface BillDao {
 
@@ -47,6 +53,21 @@ interface BillDao {
 
     @Query("SELECT SUM(paidAmount) FROM bills WHERE yearMonth = :yearMonth AND isDeleted = 0")
     fun getTotalPaidForMonth(yearMonth: Int): Flow<Long?>
+
+    @Query("""
+        SELECT yearMonth,
+               COALESCE(SUM(CASE WHEN status != 'VOID' THEN total ELSE 0 END), 0) AS totalBilled,
+               COALESCE(SUM(paidAmount), 0) AS totalPaid
+        FROM bills
+        WHERE isDeleted = 0
+        GROUP BY yearMonth
+        ORDER BY yearMonth DESC
+        LIMIT 24
+    """)
+    fun getMonthlyReport(): Flow<List<MonthSummary>>
+
+    @Query("SELECT * FROM bills WHERE roomId = :roomId AND isDeleted = 0 ORDER BY yearMonth DESC")
+    suspend fun getBillsForRoomOnce(roomId: String): List<Bill>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(bill: Bill)

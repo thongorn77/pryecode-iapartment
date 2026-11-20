@@ -18,6 +18,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -47,6 +49,7 @@ fun RoomsScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var showAddDialog by remember { mutableStateOf(false) }
+    var searchQuery   by remember { mutableStateOf("") }
 
     if (showAddDialog) {
         AddRoomDialog(
@@ -75,34 +78,73 @@ fun RoomsScreen(
             return@Scaffold
         }
 
-        if (state.grouped.isEmpty()) {
-            EmptyRoomsPlaceholder()
-            return@Scaffold
-        }
+        Column(Modifier.fillMaxSize().padding(padding)) {
+            // Search bar
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                placeholder = { Text("ค้นหาหมายเลขห้อง") },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                trailingIcon = {
+                    if (searchQuery.isNotEmpty()) {
+                        IconButton(onClick = { searchQuery = "" }) {
+                            Icon(Icons.Default.Clear, contentDescription = "ล้าง")
+                        }
+                    }
+                },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
+            )
 
-        LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(padding),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            state.grouped.forEach { buildingGroup ->
-                item {
-                    Text(buildingGroup.building.name,
-                         style = MaterialTheme.typography.titleMedium,
-                         color = MaterialTheme.colorScheme.primary)
-                }
-                buildingGroup.floors.forEach { floorGroup ->
+            if (state.grouped.isEmpty()) {
+                EmptyRoomsPlaceholder()
+                return@Scaffold
+            }
+
+            val filteredGroups = remember(state.grouped, searchQuery) {
+                if (searchQuery.isBlank()) state.grouped
+                else state.grouped.map { bg ->
+                    bg.copy(floors = bg.floors.map { fg ->
+                        fg.copy(rooms = fg.rooms.filter { room ->
+                            room.number.contains(searchQuery, ignoreCase = true)
+                        })
+                    }.filter { it.rooms.isNotEmpty() })
+                }.filter { it.floors.isNotEmpty() }
+            }
+
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                if (filteredGroups.isEmpty()) {
                     item {
-                        Text("  ชั้น ${floorGroup.floor.number}",
-                             style = MaterialTheme.typography.labelLarge,
-                             color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Spacer(Modifier.height(6.dp))
-                        RoomGrid(
-                            rooms = floorGroup.rooms,
-                            onRoomClick = { room ->
-                                navController.navigate(Screen.RoomDetail.withId(room.id))
+                        Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                            Text("ไม่พบห้อง \"$searchQuery\"",
+                                 color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                } else {
+                    filteredGroups.forEach { buildingGroup ->
+                        item {
+                            Text(buildingGroup.building.name,
+                                 style = MaterialTheme.typography.titleMedium,
+                                 color = MaterialTheme.colorScheme.primary)
+                        }
+                        buildingGroup.floors.forEach { floorGroup ->
+                            item {
+                                Text("  ชั้น ${floorGroup.floor.number}",
+                                     style = MaterialTheme.typography.labelLarge,
+                                     color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Spacer(Modifier.height(6.dp))
+                                RoomGrid(
+                                    rooms = floorGroup.rooms,
+                                    onRoomClick = { room ->
+                                        navController.navigate(Screen.RoomDetail.withId(room.id))
+                                    }
+                                )
                             }
-                        )
+                        }
                     }
                 }
             }

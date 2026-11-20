@@ -6,7 +6,9 @@
 package com.dormhub.app.data.repository
 
 import com.dormhub.app.data.dao.BillDao
+import com.dormhub.app.data.dao.BillItemDao
 import com.dormhub.app.data.dao.MeterReadingDao
+import com.dormhub.app.data.dao.MonthSummary
 import com.dormhub.app.data.dao.PaymentDao
 import com.dormhub.app.data.entity.*
 import kotlinx.coroutines.flow.Flow
@@ -21,8 +23,14 @@ interface BillRepository {
     fun getBillsForMonth(yearMonth: Int): Flow<List<Bill>>
     fun getBillById(id: String): Flow<Bill?>
     fun getPaymentsForBill(billId: String): Flow<List<Payment>>
+    fun getItemsForBill(billId: String): Flow<List<BillItem>>
+    fun getMonthlyReport(): Flow<List<MonthSummary>>
+    suspend fun getBillsForRoomOnce(roomId: String): List<Bill>
+    suspend fun getItemsForBillOnce(billId: String): List<BillItem>
     suspend fun saveBill(bill: Bill)
     suspend fun savePayment(payment: Payment)
+    suspend fun saveBillItem(item: BillItem)
+    suspend fun deleteBillItem(id: String)
     suspend fun voidBill(billId: String, reason: String)
     suspend fun generateNextBillNumber(yearMonth: Int): String
     suspend fun generateNextReceiptNumber(yearMonth: Int): String
@@ -38,6 +46,7 @@ interface BillRepository {
 @Singleton
 class BillRepositoryImpl @Inject constructor(
     private val billDao: BillDao,
+    private val billItemDao: BillItemDao,
     private val paymentDao: PaymentDao,
     private val meterReadingDao: MeterReadingDao,
 ) : BillRepository {
@@ -60,6 +69,26 @@ class BillRepositoryImpl @Inject constructor(
 
     override fun getPaymentsForBill(billId: String): Flow<List<Payment>> =
         paymentDao.getPaymentsForBill(billId)
+
+    override fun getItemsForBill(billId: String): Flow<List<BillItem>> =
+        billItemDao.getItemsForBill(billId)
+
+    override fun getMonthlyReport(): Flow<List<MonthSummary>> =
+        billDao.getMonthlyReport()
+
+    override suspend fun getBillsForRoomOnce(roomId: String): List<Bill> =
+        billDao.getBillsForRoomOnce(roomId)
+
+    override suspend fun getItemsForBillOnce(billId: String): List<BillItem> =
+        billItemDao.getItemsForBillOnce(billId)
+
+    override suspend fun saveBillItem(item: BillItem) {
+        billItemDao.insert(item.copy(updatedAt = System.currentTimeMillis()))
+    }
+
+    override suspend fun deleteBillItem(id: String) {
+        billItemDao.delete(id)
+    }
 
     override suspend fun saveBill(bill: Bill) {
         billDao.insert(bill.copy(updatedAt = System.currentTimeMillis()))

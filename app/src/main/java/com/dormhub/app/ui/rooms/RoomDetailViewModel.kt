@@ -26,6 +26,7 @@ data class RoomDetailUiState(
     val tenant: Tenant? = null,
     val recentBills: List<Bill> = emptyList(),
     val isLoading: Boolean = true,
+    val isDeleted: Boolean = false,
     val error: String? = null
 )
 
@@ -47,7 +48,7 @@ class RoomDetailViewModel @Inject constructor(
         RoomDetailUiState(
             room        = room,
             tenant      = tenant,
-            recentBills = bills.take(6),
+            recentBills = bills,
             isLoading   = false
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), RoomDetailUiState())
@@ -58,6 +59,25 @@ class RoomDetailViewModel @Inject constructor(
         viewModelScope.launch {
             tenantRepo.deactivateTenant(tenant.id)
             roomRepo.updateRoomStatus(room.id, RoomStatus.VACANT, null)
+        }
+    }
+
+    fun editRoom(number: String, monthlyRentBaht: Double, status: RoomStatus) {
+        val room = uiState.value.room ?: return
+        viewModelScope.launch {
+            roomRepo.saveRoom(room.copy(
+                number = number.trim(),
+                monthlyRent = (monthlyRentBaht * 100).toLong(),
+                status = status
+            ))
+        }
+    }
+
+    fun deleteRoom(onDeleted: () -> Unit) {
+        val room = uiState.value.room ?: return
+        viewModelScope.launch {
+            roomRepo.deleteRoom(room.id)
+            onDeleted()
         }
     }
 }

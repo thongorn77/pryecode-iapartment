@@ -1,17 +1,14 @@
-/*
- * BillDetailScreen.kt — รายละเอียดบิล พร้อม LINE share
- * ============================================================
- * แสดงรายการค่าใช้จ่ายครบถ้วน
- * share LINE ด้วย Intent.ACTION_SEND
- */
 package com.dormhub.app.ui.bills
 
 import android.content.Intent
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -20,15 +17,21 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.dormhub.app.data.entity.Bill
+import com.dormhub.app.data.entity.BillItem
 import com.dormhub.app.data.entity.BillStatus
 import com.dormhub.app.data.entity.Payment
 import com.dormhub.app.data.entity.PaymentMethod
 import com.dormhub.app.ui.navigation.Screen
+import com.dormhub.app.ui.util.BillSlipRenderer
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -44,11 +47,16 @@ fun BillDetailScreen(
 ) {
     val state   by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val scope   = rememberCoroutineScope()
     val thb = NumberFormat.getNumberInstance(Locale("th", "TH"))
     val sdf = remember { SimpleDateFormat("dd/MM/yyyy", Locale("th")) }
-    var showVoidDialog by remember { mutableStateOf(false) }
-    var voidReason     by remember { mutableStateOf("") }
 
+    var showVoidDialog   by remember { mutableStateOf(false) }
+    var voidReason       by remember { mutableStateOf("") }
+    var showAddItemDialog by remember { mutableStateOf(false) }
+    var isSharingPng     by remember { mutableStateOf(false) }
+
+    // ── Void dialog ──────────────────────────────────────────
     if (showVoidDialog) {
         AlertDialog(
             onDismissRequest = { showVoidDialog = false },
@@ -57,26 +65,27 @@ fun BillDetailScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("บิลที่ยกเลิกแล้วไม่สามารถแก้ไขได้")
                     OutlinedTextField(
-                        value = voidReason,
-                        onValueChange = { voidReason = it },
-                        label = { Text("เหตุผล") },
-                        singleLine = true,
+                        value = voidReason, onValueChange = { voidReason = it },
+                        label = { Text("เหตุผล") }, singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
             },
             confirmButton = {
                 TextButton(
-                    onClick = {
-                        viewModel.voidBill(voidReason)
-                        showVoidDialog = false
-                    },
+                    onClick = { viewModel.voidBill(voidReason); showVoidDialog = false },
                     enabled = voidReason.isNotBlank()
                 ) { Text("ยืนยัน", color = MaterialTheme.colorScheme.error) }
             },
-            dismissButton = {
-                TextButton(onClick = { showVoidDialog = false }) { Text("ยกเลิก") }
-            }
+            dismissButton = { TextButton(onClick = { showVoidDialog = false }) { Text("ยกเลิก") } }
+        )
+    }
+
+    // ── Add item dialog ──────────────────────────────────────
+    if (showAddItemDialog) {
+        AddBillItemDialog(
+            onDismiss = { showAddItemDialog = false },
+            onSave = { name, amount -> viewModel.addItem(name, amount); showAddItemDialog = false }
         )
     }
 
@@ -92,15 +101,42 @@ fun BillDetailScreen(
                 actions = {
                     state.bill?.let { bill ->
                         if (bill.status != BillStatus.VOID) {
-                            IconButton(onClick = {
-                                val text = buildBillShareText(bill, thb, sdf)
-                                val intent = Intent(Intent.ACTION_SEND).apply {
-                                    type = "text/plain"
-                                    putExtra(Intent.EXTRA_TEXT, text)
+                            // PNG share
+                            if (isSharingPng) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(24.dp).padding(end = 8.dp),
+                                    strokeWidth = 2.dp
+                                )
+                            } else {
+                                IconButton(onClick = {
+                                    val settings = state.settings ?: return@IconButton
+                                    scope.launch {
+                                        isSharingPng = true
+                                        try {
+                                            val uri = withContext(Dispatchers.IO) {
+                                                BillSlipRenderer.renderAndShare(
+                                                    context, bill, state.billItems, settings
+                                                )
+                                            }
+                                            val intent = Intent(Intent.ACTION_SEND).apply {
+                                                type = "image/png"
+                                                putExtra(Intent.EXTRA_STREAM, uri)
+                                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                            }
+                                            context.startActivity(Intent.createChooser(intent, "ส่งบิลผ่าน LINE"))
+                                        } finally {
+                                            isSharingPng = false
+                                        }
+                                    }
+                                }) {
+                                    Icon(Icons.Default.Share, contentDescription = "แชร์ PNG")
                                 }
-                                context.startActivity(Intent.createChooser(intent, "ส่งบิลผ่าน LINE"))
-                            }) {
-                                Icon(Icons.Default.Share, contentDescription = "แชร์ LINE")
+                            }
+                            // Add item (only for editable statuses)
+                            if (bill.status == BillStatus.DRAFT || bill.status == BillStatus.ISSUED) {
+                                IconButton(onClick = { showAddItemDialog = true }) {
+                                    Icon(Icons.Default.Add, contentDescription = "เพิ่มรายการ")
+                                }
                             }
                         }
                     }
@@ -116,37 +152,38 @@ fun BillDetailScreen(
         }
 
         val bill = state.bill!!
+        val canEdit = bill.status == BillStatus.DRAFT || bill.status == BillStatus.ISSUED
 
         LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
+            modifier = Modifier.fillMaxSize().padding(padding),
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Header
-            item {
-                BillHeaderCard(bill = bill, thb = thb, sdf = sdf)
+            item { BillHeaderCard(bill = bill, thb = thb, sdf = sdf) }
+            item { BillMeterCard(bill = bill, thb = thb) }
+
+            // Extra BillItems
+            if (state.billItems.isNotEmpty()) {
+                item {
+                    Text("รายการเพิ่มเติม",
+                         style = MaterialTheme.typography.titleSmall,
+                         fontWeight = FontWeight.SemiBold)
+                }
+                items(state.billItems, key = { it.id }) { item ->
+                    BillItemRow(
+                        item = item,
+                        thb = thb,
+                        canDelete = canEdit,
+                        onDelete = { viewModel.removeItem(item.id) }
+                    )
+                }
             }
 
-            // Meter details
-            item {
-                BillMeterCard(bill = bill, thb = thb)
-            }
-
-            // Totals
-            item {
-                BillTotalCard(bill = bill, thb = thb)
-            }
-
-            // Actions
+            item { BillTotalCard(bill = bill, thb = thb) }
             item {
                 BillActionRow(
-                    bill = bill,
-                    yearMonth = yearMonth,
-                    navController = navController,
-                    onIssue = { viewModel.issueBill() },
-                    onVoid = { showVoidDialog = true }
+                    bill = bill, yearMonth = yearMonth, navController = navController,
+                    onIssue = { viewModel.issueBill() }, onVoid = { showVoidDialog = true }
                 )
             }
 
@@ -166,6 +203,98 @@ fun BillDetailScreen(
     }
 }
 
+// ── BillItemRow ─────────────────────────────────────────────
+
+@Composable
+private fun BillItemRow(
+    item: BillItem,
+    thb: NumberFormat,
+    canDelete: Boolean,
+    onDelete: () -> Unit,
+) {
+    val amtColor = if (item.amount < 0) MaterialTheme.colorScheme.error
+                   else MaterialTheme.colorScheme.onSurface
+    ListItem(
+        headlineContent = { Text(item.name) },
+        trailingContent = {
+            Row(verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    "${if (item.amount < 0) "-" else "+"}฿${thb.format(kotlin.math.abs(item.amount / 100L))}",
+                    color = amtColor, fontWeight = FontWeight.Medium
+                )
+                if (canDelete) {
+                    IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
+                        Icon(Icons.Default.Delete, contentDescription = "ลบ",
+                             tint = MaterialTheme.colorScheme.error,
+                             modifier = Modifier.size(18.dp))
+                    }
+                }
+            }
+        }
+    )
+    HorizontalDivider()
+}
+
+// ── AddBillItemDialog ────────────────────────────────────────
+
+@Composable
+private fun AddBillItemDialog(onDismiss: () -> Unit, onSave: (String, Double) -> Unit) {
+    var name   by remember { mutableStateOf("") }
+    var amount by remember { mutableStateOf("") }
+    var isDiscount by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("เพิ่มรายการ") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                // Quick presets
+                Text("รายการด่วน", style = MaterialTheme.typography.labelSmall,
+                     color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    listOf("ค่าอินเทอร์เน็ต", "ค่าจอดรถ", "ค่าทำความสะอาด").forEach { preset ->
+                        FilterChip(
+                            selected = name == preset,
+                            onClick = { name = preset },
+                            label = { Text(preset, style = MaterialTheme.typography.labelSmall) }
+                        )
+                    }
+                }
+                OutlinedTextField(
+                    value = name, onValueChange = { name = it },
+                    label = { Text("ชื่อรายการ") }, singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = amount, onValueChange = { amount = it },
+                    label = { Text("จำนวนเงิน (บาท)") }, singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    prefix = { Text("฿") }
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(checked = isDiscount, onCheckedChange = { isDiscount = it })
+                    Text("เป็นส่วนลด (หักออกจากยอด)",
+                         style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    val amt = (amount.toDoubleOrNull() ?: 0.0) * (if (isDiscount) -1.0 else 1.0)
+                    onSave(name, amt)
+                },
+                enabled = name.isNotBlank() && (amount.toDoubleOrNull() ?: 0.0) > 0
+            ) { Text("เพิ่ม") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("ยกเลิก") } }
+    )
+}
+
+// ── Existing composables (unchanged) ────────────────────────
+
 @Composable
 private fun BillHeaderCard(bill: Bill, thb: NumberFormat, sdf: SimpleDateFormat) {
     val (statusLabel, statusColor) = when (bill.status) {
@@ -178,18 +307,11 @@ private fun BillHeaderCard(bill: Bill, thb: NumberFormat, sdf: SimpleDateFormat)
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(bill.billNumber,
-                     style = MaterialTheme.typography.titleLarge,
-                     fontWeight = FontWeight.Bold,
-                     modifier = Modifier.weight(1f))
-                SuggestionChip(
-                    onClick = {},
-                    label = { Text(statusLabel) },
+                Text(bill.billNumber, style = MaterialTheme.typography.titleLarge,
+                     fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                SuggestionChip(onClick = {}, label = { Text(statusLabel) },
                     colors = SuggestionChipDefaults.suggestionChipColors(
-                        containerColor = statusColor.copy(alpha = 0.12f),
-                        labelColor = statusColor
-                    )
-                )
+                        containerColor = statusColor.copy(alpha = 0.12f), labelColor = statusColor))
             }
             HorizontalDivider()
             BillInfoRow("ห้อง", bill.roomNumber)
@@ -205,20 +327,16 @@ private fun BillMeterCard(bill: Bill, thb: NumberFormat) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text("รายละเอียดค่าใช้จ่าย",
-                 style = MaterialTheme.typography.titleSmall,
-                 fontWeight = FontWeight.SemiBold)
+                 style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
             HorizontalDivider()
             BillAmountRow("ค่าเช่า", bill.rent)
             BillAmountRow(
                 "ค่าไฟ (${bill.electricityPrevious}→${bill.electricityCurrent}, ${bill.electricityUnits} หน่วย)",
-                bill.electricityAmount
-            )
+                bill.electricityAmount)
             BillAmountRow(
                 "ค่าน้ำ (${bill.waterPrevious}→${bill.waterCurrent}, ${bill.waterUnits} หน่วย)",
-                bill.waterAmount
-            )
+                bill.waterAmount)
             if (bill.fixedFeesTotal > 0) BillAmountRow("ค่าบริการรายเดือน", bill.fixedFeesTotal)
-            if (bill.extrasTotal != 0L) BillAmountRow("รายการเพิ่ม/ลด", bill.extrasTotal)
             if (bill.previousBalance > 0) BillAmountRow("ยอดค้างเดือนก่อน", bill.previousBalance)
             if (bill.lateFee > 0) BillAmountRow("ค่าปรับ", bill.lateFee)
         }
@@ -227,21 +345,14 @@ private fun BillMeterCard(bill: Bill, thb: NumberFormat) {
 
 @Composable
 private fun BillTotalCard(bill: Bill, thb: NumberFormat) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer
-        )
-    ) {
+    Card(modifier = Modifier.fillMaxWidth(),
+         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row(modifier = Modifier.fillMaxWidth()) {
-                Text("รวมทั้งหมด",
-                     style = MaterialTheme.typography.titleMedium,
-                     fontWeight = FontWeight.Bold,
-                     modifier = Modifier.weight(1f))
+                Text("รวมทั้งหมด", style = MaterialTheme.typography.titleMedium,
+                     fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
                 Text("฿${thb.format(bill.total / 100)}",
-                     style = MaterialTheme.typography.titleMedium,
-                     fontWeight = FontWeight.Bold)
+                     style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             }
             if (bill.paidAmount > 0) {
                 Row(modifier = Modifier.fillMaxWidth()) {
@@ -252,8 +363,7 @@ private fun BillTotalCard(bill: Bill, thb: NumberFormat) {
                 }
                 Row(modifier = Modifier.fillMaxWidth()) {
                     Text("คงเหลือ", fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                    Text("฿${thb.format(bill.remainingAmount / 100)}",
-                         fontWeight = FontWeight.Bold)
+                    Text("฿${thb.format(bill.remainingAmount / 100)}", fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -262,17 +372,12 @@ private fun BillTotalCard(bill: Bill, thb: NumberFormat) {
 
 @Composable
 private fun BillActionRow(
-    bill: Bill,
-    yearMonth: Int,
-    navController: NavController,
-    onIssue: () -> Unit,
-    onVoid: () -> Unit,
+    bill: Bill, yearMonth: Int, navController: NavController,
+    onIssue: () -> Unit, onVoid: () -> Unit,
 ) {
     when (bill.status) {
         BillStatus.DRAFT -> {
-            Button(onClick = onIssue, modifier = Modifier.fillMaxWidth()) {
-                Text("ออกบิล")
-            }
+            Button(onClick = onIssue, modifier = Modifier.fillMaxWidth()) { Text("ออกบิล") }
         }
         BillStatus.ISSUED, BillStatus.PARTIAL -> {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -281,22 +386,19 @@ private fun BillActionRow(
                     modifier = Modifier.weight(1f)
                 ) { Text("บันทึกชำระเงิน") }
                 OutlinedButton(
-                    onClick = onVoid,
-                    modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = MaterialTheme.colorScheme.error
-                    )
+                    onClick = onVoid, modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
                 ) { Text("ยกเลิกบิล") }
             }
         }
-        BillStatus.PAID  -> {
+        BillStatus.PAID -> {
             OutlinedButton(onClick = onVoid, modifier = Modifier.fillMaxWidth(),
                            colors = ButtonDefaults.outlinedButtonColors(
                                contentColor = MaterialTheme.colorScheme.error)) {
                 Text("ยกเลิกบิล")
             }
         }
-        BillStatus.VOID  -> { /* no actions */ }
+        BillStatus.VOID -> { /* no actions */ }
     }
 }
 
@@ -310,8 +412,7 @@ private fun PaymentHistoryItem(payment: Payment, thb: NumberFormat, sdf: SimpleD
     ListItem(
         headlineContent = { Text(payment.receiptNumber) },
         supportingContent = { Text("${sdf.format(Date(payment.paymentDate))}  •  $methodLabel") },
-        trailingContent  = { Text("฿${thb.format(payment.amount / 100)}",
-                                  fontWeight = FontWeight.Medium) }
+        trailingContent = { Text("฿${thb.format(payment.amount / 100)}", fontWeight = FontWeight.Medium) }
     )
 }
 
@@ -329,32 +430,7 @@ private fun BillInfoRow(label: String, value: String) {
 private fun BillAmountRow(label: String, amountSatang: Long) {
     val thb = NumberFormat.getNumberInstance(Locale("th", "TH"))
     Row(Modifier.fillMaxWidth()) {
-        Text(label, modifier = Modifier.weight(1f),
-             style = MaterialTheme.typography.bodyMedium)
-        Text("฿${thb.format(amountSatang / 100)}",
-             style = MaterialTheme.typography.bodyMedium)
-    }
-}
-
-private fun buildBillShareText(bill: Bill, thb: NumberFormat, sdf: SimpleDateFormat): String {
-    val year  = bill.yearMonth / 100
-    val month = bill.yearMonth % 100
-    return buildString {
-        appendLine("📋 ใบแจ้งค่าเช่า ${"%04d/%02d".format(year, month)}")
-        appendLine("เลขที่: ${bill.billNumber}")
-        appendLine("ห้อง: ${bill.roomNumber}")
-        appendLine("ผู้เช่า: ${bill.tenantName}")
-        appendLine()
-        appendLine("💰 รายการ:")
-        appendLine("  ค่าเช่า: ฿${thb.format(bill.rent / 100)}")
-        appendLine("  ค่าไฟ (${bill.electricityUnits} หน่วย): ฿${thb.format(bill.electricityAmount / 100)}")
-        appendLine("  ค่าน้ำ (${bill.waterUnits} หน่วย): ฿${thb.format(bill.waterAmount / 100)}")
-        if (bill.fixedFeesTotal > 0)
-            appendLine("  ค่าบริการ: ฿${thb.format(bill.fixedFeesTotal / 100)}")
-        appendLine()
-        appendLine("📌 รวม: ฿${thb.format(bill.total / 100)}")
-        appendLine("⏰ ชำระภายใน: ${sdf.format(Date(bill.dueDate))}")
-        if (bill.remainingAmount < bill.total)
-            appendLine("✅ ชำระแล้ว: ฿${thb.format(bill.paidAmount / 100)}")
+        Text(label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+        Text("฿${thb.format(amountSatang / 100)}", style = MaterialTheme.typography.bodyMedium)
     }
 }

@@ -30,6 +30,7 @@ import com.dormhub.app.ui.bills.PaymentScreen
 import com.dormhub.app.ui.dashboard.DashboardScreen
 import com.dormhub.app.ui.meter.MeterEntryScreen
 import com.dormhub.app.ui.onboarding.OnboardingScreen
+import com.dormhub.app.ui.report.ReportScreen
 import com.dormhub.app.ui.rooms.RoomDetailScreen
 import com.dormhub.app.ui.rooms.RoomsScreen
 import com.dormhub.app.ui.settings.SettingsScreen
@@ -140,6 +141,11 @@ fun AppNavGraph() {
                 val yearMonth = backStack.arguments?.getString("yearMonth")?.toIntOrNull() ?: return@composable
                 val billId    = backStack.arguments?.getString("billId") ?: return@composable
                 PaymentScreen(yearMonth = yearMonth, billId = billId, navController = navController)
+            }
+
+            // Phase 3 — Report
+            composable(Screen.Report.route) {
+                ReportScreen(navController = navController)
             }
         }
     }

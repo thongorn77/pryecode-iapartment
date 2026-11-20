@@ -45,4 +45,7 @@ sealed class Screen(val route: String) {
     object Payment : Screen("bills/{yearMonth}/{billId}/payment") {
         fun withIds(ym: Int, billId: String) = "bills/$ym/$billId/payment"
     }
+
+    // Phase 3 — Report
+    object Report : Screen("report")
 }

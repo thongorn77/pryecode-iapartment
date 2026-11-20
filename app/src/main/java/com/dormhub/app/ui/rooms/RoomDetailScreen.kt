@@ -1,20 +1,13 @@
-/*
- * RoomDetailScreen.kt — หน้าข้อมูลห้องพัก
- * ============================================================
- * แสดง:
- *   - หมายเลขห้อง, สถานะ, ค่าเช่า
- *   - ข้อมูลผู้เช่าปัจจุบัน (ถ้ามี)
- *   - ปุ่ม "เพิ่มผู้เช่า" (ถ้าว่าง)
- *   - ปุ่ม "ย้ายออก" (ถ้ามีผู้เช่า)
- *   - ประวัติบิลย้อนหลัง
- */
 package com.dormhub.app.ui.rooms
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -22,6 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -46,25 +40,57 @@ fun RoomDetailScreen(
     viewModel: RoomDetailViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    var showMoveOutDialog by remember { mutableStateOf(false) }
+    var showMoveOutDialog  by remember { mutableStateOf(false) }
+    var showEditDialog     by remember { mutableStateOf(false) }
+    var showDeleteDialog   by remember { mutableStateOf(false) }
     val thb = NumberFormat.getNumberInstance(Locale("th", "TH"))
     val sdf = remember { SimpleDateFormat("dd/MM/yyyy", Locale("th")) }
 
+    // ── Move-out confirm ──────────────────────────────────────
     if (showMoveOutDialog) {
         AlertDialog(
             onDismissRequest = { showMoveOutDialog = false },
-            title   = { Text("ยืนยันการย้ายออก") },
-            text    = { Text("ต้องการบันทึกการย้ายออกของ ${state.tenant?.name} ใช่ไหม?") },
+            title = { Text("ยืนยันการย้ายออก") },
+            text  = { Text("ต้องการบันทึกการย้ายออกของ ${state.tenant?.name} ใช่ไหม?") },
+            confirmButton = {
+                TextButton(onClick = { viewModel.moveOut(); showMoveOutDialog = false }) {
+                    Text("ยืนยัน", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = { TextButton(onClick = { showMoveOutDialog = false }) { Text("ยกเลิก") } }
+        )
+    }
+
+    // ── Delete confirm ────────────────────────────────────────
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("ลบห้องพัก") },
+            text  = { Text("ลบห้อง ${state.room?.number}? ข้อมูลบิลและการชำระเงินจะยังคงอยู่") },
             confirmButton = {
                 TextButton(onClick = {
-                    viewModel.moveOut()
-                    showMoveOutDialog = false
-                }) { Text("ยืนยัน", color = MaterialTheme.colorScheme.error) }
+                    viewModel.deleteRoom { navController.popBackStack() }
+                    showDeleteDialog = false
+                }) { Text("ลบ", color = MaterialTheme.colorScheme.error) }
             },
-            dismissButton = {
-                TextButton(onClick = { showMoveOutDialog = false }) { Text("ยกเลิก") }
-            }
+            dismissButton = { TextButton(onClick = { showDeleteDialog = false }) { Text("ยกเลิก") } }
         )
+    }
+
+    // ── Edit room dialog ──────────────────────────────────────
+    state.room?.let { room ->
+        if (showEditDialog) {
+            EditRoomDialog(
+                currentNumber = room.number,
+                currentRentBaht = room.monthlyRent / 100.0,
+                currentStatus = room.status,
+                onDismiss = { showEditDialog = false },
+                onSave = { number, rent, status ->
+                    viewModel.editRoom(number, rent, status)
+                    showEditDialog = false
+                }
+            )
+        }
     }
 
     Scaffold(
@@ -74,6 +100,20 @@ fun RoomDetailScreen(
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "กลับ")
+                    }
+                },
+                actions = {
+                    if (state.room != null) {
+                        IconButton(onClick = { showEditDialog = true }) {
+                            Icon(Icons.Default.Edit, contentDescription = "แก้ไขห้อง")
+                        }
+                        // Only allow delete when room is vacant (no active tenant)
+                        if (state.room!!.status == RoomStatus.VACANT) {
+                            IconButton(onClick = { showDeleteDialog = true }) {
+                                Icon(Icons.Default.Delete, contentDescription = "ลบห้อง",
+                                     tint = MaterialTheme.colorScheme.error)
+                            }
+                        }
                     }
                 }
             )
@@ -112,21 +152,17 @@ fun RoomDetailScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // ข้อมูลห้อง
+            // Room info card
             item {
                 Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text("ห้อง ${room.number}", style = MaterialTheme.typography.titleLarge,
                                  fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                            SuggestionChip(
-                                onClick = {},
-                                label = { Text(statusLabel) },
+                            SuggestionChip(onClick = {}, label = { Text(statusLabel) },
                                 colors = SuggestionChipDefaults.suggestionChipColors(
                                     containerColor = statusColor.copy(alpha = 0.15f),
-                                    labelColor = statusColor
-                                )
-                            )
+                                    labelColor = statusColor))
                         }
                         HorizontalDivider()
                         InfoRow("ค่าเช่า", "฿${thb.format(room.monthlyRent / 100)} / เดือน")
@@ -134,13 +170,13 @@ fun RoomDetailScreen(
                 }
             }
 
-            // ผู้เช่าปัจจุบัน
+            // Current tenant
             state.tenant?.let { tenant ->
                 item {
                     Text("ผู้เช่าปัจจุบัน", style = MaterialTheme.typography.titleMedium,
                          fontWeight = FontWeight.SemiBold)
                     Card(modifier = Modifier.fillMaxWidth()) {
-                        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             InfoRow("ชื่อ", tenant.name)
                             if (tenant.phone.isNotBlank()) InfoRow("โทรศัพท์", tenant.phone)
                             if (tenant.lineName.isNotBlank()) InfoRow("LINE", tenant.lineName)
@@ -149,17 +185,14 @@ fun RoomDetailScreen(
                             HorizontalDivider()
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 OutlinedButton(
-                                    onClick = {
-                                        navController.navigate(Screen.EditTenant.withIds(roomId, tenant.id))
-                                    },
+                                    onClick = { navController.navigate(Screen.EditTenant.withIds(roomId, tenant.id)) },
                                     modifier = Modifier.weight(1f)
                                 ) { Text("แก้ไขข้อมูล") }
                                 OutlinedButton(
                                     onClick = { showMoveOutDialog = true },
                                     modifier = Modifier.weight(1f),
                                     colors = ButtonDefaults.outlinedButtonColors(
-                                        contentColor = MaterialTheme.colorScheme.error
-                                    )
+                                        contentColor = MaterialTheme.colorScheme.error)
                                 ) { Text("ย้ายออก") }
                             }
                         }
@@ -167,15 +200,15 @@ fun RoomDetailScreen(
                 }
             }
 
-            // ประวัติบิล
+            // Bill history (all bills)
             if (state.recentBills.isNotEmpty()) {
                 item {
-                    Text("บิลล่าสุด", style = MaterialTheme.typography.titleMedium,
+                    Text("ประวัติบิลทั้งหมด", style = MaterialTheme.typography.titleMedium,
                          fontWeight = FontWeight.SemiBold)
                 }
                 items(state.recentBills) { bill ->
                     val ym = bill.yearMonth
-                    val monthStr = "${ym / 100}/${ym % 100}"
+                    val monthStr = "${ym / 100}/${"%02d".format(ym % 100)}"
                     val billStatusLabel = when (bill.status) {
                         BillStatus.DRAFT   -> "ร่าง"
                         BillStatus.ISSUED  -> "รอชำระ"
@@ -183,10 +216,18 @@ fun RoomDetailScreen(
                         BillStatus.PAID    -> "ชำระแล้ว"
                         BillStatus.VOID    -> "ยกเลิก"
                     }
+                    val billStatusColor = when (bill.status) {
+                        BillStatus.PAID    -> MaterialTheme.colorScheme.primary
+                        BillStatus.VOID    -> MaterialTheme.colorScheme.error
+                        BillStatus.ISSUED  -> MaterialTheme.colorScheme.secondary
+                        BillStatus.PARTIAL -> MaterialTheme.colorScheme.tertiary
+                        else               -> MaterialTheme.colorScheme.onSurfaceVariant
+                    }
                     ListItem(
                         headlineContent = { Text("${bill.billNumber}  ($monthStr)") },
                         supportingContent = { Text("฿${thb.format(bill.total / 100)}") },
-                        trailingContent = { Text(billStatusLabel) }
+                        trailingContent = { Text(billStatusLabel, color = billStatusColor,
+                                                 fontWeight = FontWeight.Medium) }
                     )
                     HorizontalDivider()
                 }
@@ -194,6 +235,74 @@ fun RoomDetailScreen(
         }
     }
 }
+
+// ── Edit room dialog ─────────────────────────────────────────
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun EditRoomDialog(
+    currentNumber: String,
+    currentRentBaht: Double,
+    currentStatus: RoomStatus,
+    onDismiss: () -> Unit,
+    onSave: (String, Double, RoomStatus) -> Unit,
+) {
+    var number  by remember { mutableStateOf(currentNumber) }
+    var rent    by remember { mutableStateOf(if (currentRentBaht % 1 == 0.0)
+                                currentRentBaht.toLong().toString()
+                              else currentRentBaht.toString()) }
+    var status  by remember { mutableStateOf(currentStatus) }
+    var statusExpanded by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("แก้ไขห้องพัก") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedTextField(value = number, onValueChange = { number = it },
+                    label = { Text("หมายเลขห้อง") }, singleLine = true,
+                    modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = rent, onValueChange = { rent = it },
+                    label = { Text("ค่าเช่า (บาท/เดือน)") }, singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    prefix = { Text("฿") })
+                ExposedDropdownMenuBox(expanded = statusExpanded,
+                    onExpandedChange = { statusExpanded = it }) {
+                    OutlinedTextField(
+                        value = when (status) {
+                            RoomStatus.OCCUPIED    -> "มีผู้เช่า"
+                            RoomStatus.VACANT      -> "ว่าง"
+                            RoomStatus.MAINTENANCE -> "ซ่อมบำรุง"
+                        },
+                        onValueChange = {}, readOnly = true,
+                        label = { Text("สถานะ") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(statusExpanded) },
+                        modifier = Modifier.fillMaxWidth().menuAnchor()
+                    )
+                    ExposedDropdownMenu(expanded = statusExpanded,
+                        onDismissRequest = { statusExpanded = false }) {
+                        listOf(RoomStatus.VACANT to "ว่าง",
+                               RoomStatus.OCCUPIED to "มีผู้เช่า",
+                               RoomStatus.MAINTENANCE to "ซ่อมบำรุง").forEach { (s, label) ->
+                            DropdownMenuItem(text = { Text(label) }, onClick = {
+                                status = s; statusExpanded = false })
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onSave(number, rent.toDoubleOrNull() ?: 0.0, status) },
+                enabled = number.isNotBlank() && (rent.toDoubleOrNull() ?: 0.0) > 0
+            ) { Text("บันทึก") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("ยกเลิก") } }
+    )
+}
+
+// ── Helper ───────────────────────────────────────────────────
 
 @Composable
 private fun InfoRow(label: String, value: String) {

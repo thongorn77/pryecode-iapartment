@@ -15,6 +15,7 @@ import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import com.dormhub.app.data.dao.*
+import com.dormhub.app.data.dao.BillItemDao
 import com.dormhub.app.data.entity.*
 
 @Database(
@@ -49,5 +50,6 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun fixedFeeDao(): FixedFeeDao
     abstract fun meterReadingDao(): MeterReadingDao
     abstract fun billDao(): BillDao
+    abstract fun billItemDao(): BillItemDao
     abstract fun paymentDao(): PaymentDao
 }

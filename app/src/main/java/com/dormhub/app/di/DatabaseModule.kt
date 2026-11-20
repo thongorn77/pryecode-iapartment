@@ -39,5 +39,6 @@ object DatabaseModule {
     @Provides fun provideFixedFeeDao(db: AppDatabase): FixedFeeDao = db.fixedFeeDao()
     @Provides fun provideMeterReadingDao(db: AppDatabase): MeterReadingDao = db.meterReadingDao()
     @Provides fun provideBillDao(db: AppDatabase): BillDao = db.billDao()
+    @Provides fun provideBillItemDao(db: AppDatabase): BillItemDao = db.billItemDao()
     @Provides fun providePaymentDao(db: AppDatabase): PaymentDao = db.paymentDao()
 }

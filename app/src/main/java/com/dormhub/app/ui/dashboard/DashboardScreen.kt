@@ -13,6 +13,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Assignment
+import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
@@ -66,6 +67,8 @@ fun DashboardScreen(
                             { navController.navigate(Screen.MeterEntry.withYearMonth(state.currentYearMonth)) }),
                         Triple("รายการบิล", Icons.Default.Assignment,
                             { navController.navigate(Screen.BillList.withYearMonth(state.currentYearMonth)) }),
+                        Triple("รายงาน", Icons.Default.BarChart,
+                            { navController.navigate(Screen.Report.route) }),
                     )
                     if (wide) {
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -74,7 +77,7 @@ fun DashboardScreen(
                                            modifier = Modifier.weight(1f), onClick = onClick)
                             }
                             // ช่องว่างให้สมดุลบน tablet landscape
-                            Spacer(Modifier.weight(2f))
+                            Spacer(Modifier.weight(1f))
                         }
                     } else {
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

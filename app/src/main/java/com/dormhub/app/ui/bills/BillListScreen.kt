@@ -13,6 +13,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -44,6 +46,7 @@ fun BillListScreen(
     val monthLabel = "%04d/%02d".format(year, month)
     val thb = NumberFormat.getNumberInstance(Locale("th", "TH"))
     var showIssueAllDialog by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
 
     if (showIssueAllDialog) {
         AlertDialog(
@@ -113,42 +116,68 @@ fun BillListScreen(
             return@Scaffold
         }
 
-        // banner วันออกบิล
-        if (!state.canGenerate) {
-            Surface(
-                color = MaterialTheme.colorScheme.secondaryContainer,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    "⏰ ออกบิลได้ตั้งแต่วันที่ ${state.billingDay} ของเดือน",
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer
-                )
+        val filteredBills = remember(state.bills, searchQuery) {
+            if (searchQuery.isBlank()) state.bills
+            else state.bills.filter { bill ->
+                bill.roomNumber.contains(searchQuery, ignoreCase = true) ||
+                bill.tenantName.contains(searchQuery, ignoreCase = true) ||
+                bill.billNumber.contains(searchQuery, ignoreCase = true)
             }
         }
 
+        Column(Modifier.fillMaxSize().padding(padding)) {
+            // Search bar
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                placeholder = { Text("ค้นหาห้อง / ผู้เช่า / เลขบิล") },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                trailingIcon = {
+                    if (searchQuery.isNotEmpty()) {
+                        IconButton(onClick = { searchQuery = "" }) {
+                            Icon(Icons.Default.Clear, contentDescription = "ล้าง")
+                        }
+                    }
+                },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
+            )
+
+            // banner วันออกบิล
+            if (!state.canGenerate) {
+                Surface(
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        "⏰ ออกบิลได้ตั้งแต่วันที่ ${state.billingDay} ของเดือน",
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                }
+            }
+
         LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
+            modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(bottom = 88.dp)
         ) {
-            if (state.bills.isEmpty()) {
+            if (filteredBills.isEmpty()) {
                 item {
                     Box(
                         Modifier.fillMaxWidth().padding(32.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            "ยังไม่มีบิลเดือนนี้\nกดปุ่ม + เพื่อสร้างบิลจากมิเตอร์",
+                            if (searchQuery.isBlank()) "ยังไม่มีบิลเดือนนี้\nกดปุ่ม + เพื่อสร้างบิลจากมิเตอร์"
+                            else "ไม่พบบิลที่ตรงกับ \"$searchQuery\"",
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
             } else {
-                items(state.bills, key = { it.id }) { bill ->
+                items(filteredBills, key = { it.id }) { bill ->
                     BillListItem(
                         bill = bill,
                         thb = thb,
@@ -160,6 +189,7 @@ fun BillListScreen(
                 }
             }
         }
+        } // end Column
     }
 }
 
