@@ -17,6 +17,7 @@ import com.dormhub.app.data.repository.BuildingRepository
 import com.dormhub.app.data.repository.RoomRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class FloorWithRooms(
@@ -73,4 +74,35 @@ class RoomsViewModel @Inject constructor(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), RoomsUiState())
 
     fun setStatusFilter(status: RoomStatus?) = _statusFilter.update { status }
+
+    fun addRoom(number: String, rentBaht: Long, floorNumber: Int = 1) {
+        viewModelScope.launch {
+            val buildings = buildingRepo.getAllFloorsOnce().let {
+                // ดึง building list จาก uiState (ไม่ต้อง query ซ้ำ)
+                uiState.value.grouped.map { it.building }
+            }
+            val building = if (buildings.isEmpty()) {
+                val b = Building(name = "อาคาร A")
+                buildingRepo.saveBuilding(b)
+                b
+            } else buildings.first()
+
+            val floors = buildingRepo.getAllFloorsOnce().filter {
+                it.buildingId == building.id && !it.isDeleted
+            }
+            val floor = floors.find { it.number == floorNumber }
+                ?: Floor(buildingId = building.id, number = floorNumber).also {
+                    buildingRepo.saveFloor(it)
+                }
+
+            roomRepo.saveRoom(
+                Room(
+                    buildingId   = building.id,
+                    floorId      = floor.id,
+                    number       = number.trim(),
+                    monthlyRent  = rentBaht * 100,
+                )
+            )
+        }
+    }
 }

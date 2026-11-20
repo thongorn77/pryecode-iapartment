@@ -29,6 +29,7 @@ data class RoomMeterState(
     val waterPrevious: String = "",
     val waterCurrent: String = "",
     val isSaved: Boolean = false,
+    val isFirstEntry: Boolean = false, // true = ไม่มีประวัติมิเตอร์เลย → ให้แก้ไขค่าก่อนหน้าได้
 )
 
 data class MeterEntryUiState(
@@ -80,10 +81,27 @@ class MeterEntryViewModel @Inject constructor(
                             waterPrevious = if (prevWater > 0) prevWater.toString() else "",
                             waterCurrent  = if (curWater > 0) curWater.toString() else "",
                             isSaved = existing != null,
+                            isFirstEntry = existing == null && latest == null,
                         )
                     }
                     _uiState.update { it.copy(rooms = states, isLoading = false) }
                 }
+        }
+    }
+
+    fun updateElecPrevious(roomId: String, value: String) {
+        _uiState.update { state ->
+            state.copy(rooms = state.rooms.map { r ->
+                if (r.room.id == roomId) r.copy(electricityPrevious = value) else r
+            })
+        }
+    }
+
+    fun updateWaterPrevious(roomId: String, value: String) {
+        _uiState.update { state ->
+            state.copy(rooms = state.rooms.map { r ->
+                if (r.room.id == roomId) r.copy(waterPrevious = value) else r
+            })
         }
     }
 

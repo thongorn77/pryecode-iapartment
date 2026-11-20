@@ -15,16 +15,17 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -45,10 +46,26 @@ fun RoomsScreen(
     viewModel: RoomsViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    var showAddDialog by remember { mutableStateOf(false) }
+
+    if (showAddDialog) {
+        AddRoomDialog(
+            onDismiss = { showAddDialog = false },
+            onConfirm = { number, rent, floor ->
+                viewModel.addRoom(number, rent, floor)
+                showAddDialog = false
+            }
+        )
+    }
 
     Scaffold(
         topBar = {
             TopAppBar(title = { Text(stringResource(R.string.nav_rooms)) })
+        },
+        floatingActionButton = {
+            FloatingActionButton(onClick = { showAddDialog = true }) {
+                Icon(Icons.Default.Add, contentDescription = "เพิ่มห้องพัก")
+            }
         }
     ) { padding ->
         if (state.isLoading) {
@@ -153,11 +170,63 @@ private fun FlowRow(
 @Composable
 private fun EmptyRoomsPlaceholder() {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text("ยังไม่มีห้องพัก", style = MaterialTheme.typography.titleMedium)
-            Text("ไปที่ ตั้งค่า → อาคาร เพื่อเพิ่มห้อง",
+            Text("กด + เพื่อเพิ่มห้องพักแรก",
                  style = MaterialTheme.typography.bodySmall,
                  color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
+}
+
+@Composable
+private fun AddRoomDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (number: String, rentBaht: Long, floorNumber: Int) -> Unit,
+) {
+    var number by remember { mutableStateOf("") }
+    var rent   by remember { mutableStateOf("") }
+    var floor  by remember { mutableStateOf("1") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("เพิ่มห้องพัก") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = number, onValueChange = { number = it },
+                    label = { Text("เลขห้อง เช่น 101, A-205") },
+                    singleLine = true, modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = rent, onValueChange = { rent = it },
+                    label = { Text("ค่าเช่า (บาท/เดือน)") },
+                    singleLine = true, modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    prefix = { Text("฿") }
+                )
+                OutlinedTextField(
+                    value = floor, onValueChange = { floor = it },
+                    label = { Text("ชั้น") },
+                    singleLine = true, modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    val rentLong = rent.toLongOrNull() ?: 0L
+                    val floorInt = floor.toIntOrNull() ?: 1
+                    if (number.isNotBlank() && rentLong > 0) {
+                        onConfirm(number, rentLong, floorInt)
+                    }
+                },
+                enabled = number.isNotBlank() && (rent.toLongOrNull() ?: 0L) > 0
+            ) { Text("เพิ่ม") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("ยกเลิก") }
+        }
+    )
 }

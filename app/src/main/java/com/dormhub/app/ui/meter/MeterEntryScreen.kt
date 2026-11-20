@@ -74,7 +74,9 @@ fun MeterEntryScreen(
                 items(state.rooms, key = { it.room.id }) { roomState ->
                     MeterRoomCard(
                         roomState = roomState,
-                        onElecCurrentChange = { viewModel.updateElecCurrent(roomState.room.id, it) },
+                        onElecPreviousChange = { viewModel.updateElecPrevious(roomState.room.id, it) },
+                        onElecCurrentChange  = { viewModel.updateElecCurrent(roomState.room.id, it) },
+                        onWaterPreviousChange = { viewModel.updateWaterPrevious(roomState.room.id, it) },
                         onWaterCurrentChange = { viewModel.updateWaterCurrent(roomState.room.id, it) },
                         onSave = { viewModel.saveReading(roomState.room.id) }
                     )
@@ -87,7 +89,9 @@ fun MeterEntryScreen(
 @Composable
 private fun MeterRoomCard(
     roomState: RoomMeterState,
+    onElecPreviousChange: (String) -> Unit,
     onElecCurrentChange: (String) -> Unit,
+    onWaterPreviousChange: (String) -> Unit,
     onWaterCurrentChange: (String) -> Unit,
     onSave: () -> Unit,
 ) {
@@ -131,14 +135,20 @@ private fun MeterRoomCard(
             // ไฟฟ้า
             Text("⚡ มิเตอร์ไฟฟ้า", style = MaterialTheme.typography.labelMedium,
                  color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (roomState.isFirstEntry) {
+                Text("✏️ ใส่ค่าเริ่มต้นได้เลย",
+                     style = MaterialTheme.typography.labelSmall,
+                     color = MaterialTheme.colorScheme.tertiary)
+            }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
                     value = roomState.electricityPrevious,
-                    onValueChange = {},
-                    label = { Text("ก่อนหน้า") },
-                    readOnly = true,
+                    onValueChange = if (roomState.isFirstEntry) onElecPreviousChange else { _ -> },
+                    label = { Text(if (roomState.isFirstEntry) "ค่าเริ่มต้น" else "ก่อนหน้า") },
+                    readOnly = !roomState.isFirstEntry,
                     modifier = Modifier.weight(1f),
                     singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 )
                 OutlinedTextField(
                     value = roomState.electricityCurrent,
@@ -162,11 +172,12 @@ private fun MeterRoomCard(
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
                     value = roomState.waterPrevious,
-                    onValueChange = {},
-                    label = { Text("ก่อนหน้า") },
-                    readOnly = true,
+                    onValueChange = if (roomState.isFirstEntry) onWaterPreviousChange else { _ -> },
+                    label = { Text(if (roomState.isFirstEntry) "ค่าเริ่มต้น" else "ก่อนหน้า") },
+                    readOnly = !roomState.isFirstEntry,
                     modifier = Modifier.weight(1f),
                     singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 )
                 OutlinedTextField(
                     value = roomState.waterCurrent,
