@@ -21,7 +21,8 @@ import java.util.Locale
 
 object BillSlipRenderer {
 
-    private const val W = 540
+    private const val W = 540       // logical width (px)
+    private const val SCALE = 2f    // render at 2× = 1080px wide for crisp sharing
     private const val PADDING = 20f
     private const val COLOR_HEADER = 0xFF1A237E.toInt()
     private const val COLOR_SECTION = 0xFF1565C0.toInt()
@@ -49,9 +50,12 @@ object BillSlipRenderer {
         val hasQr = settings.promptPayId.isNotBlank()
         val estimatedH = 780 + extraRows * 28 + if (hasQr) 230 else 0
 
-        val bmp = Bitmap.createBitmap(W, estimatedH, Bitmap.Config.ARGB_8888)
+        val physW = (W * SCALE).toInt()
+        val physH = (estimatedH * SCALE).toInt()
+        val bmp = Bitmap.createBitmap(physW, physH, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bmp)
         canvas.drawColor(Color.WHITE)
+        canvas.scale(SCALE, SCALE)  // all drawing uses logical coordinates from here on
 
         // ── Paints ──────────────────────────────────────────────
         fun paint(size: Float = 14f, color: Int = Color.BLACK, bold: Boolean = false,
@@ -213,9 +217,9 @@ object BillSlipRenderer {
         val watermark = paint(9f, Color.LTGRAY, align = Paint.Align.CENTER)
         canvas.drawText("สร้างโดย iApartment by Pryecode", W / 2f, y + 10f, watermark)
 
-        // Crop to actual content height
-        val finalH = (y + 20f).toInt().coerceAtMost(estimatedH)
-        return if (finalH < estimatedH) Bitmap.createBitmap(bmp, 0, 0, W, finalH) else bmp
+        // Crop to actual content height (convert logical y back to physical pixels)
+        val finalPhysH = ((y + 20f) * SCALE).toInt().coerceAtMost(physH)
+        return if (finalPhysH < physH) Bitmap.createBitmap(bmp, 0, 0, physW, finalPhysH) else bmp
     }
 
     private fun saveToCache(context: Context, bitmap: Bitmap, billNumber: String): File {
