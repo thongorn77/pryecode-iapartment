@@ -135,17 +135,11 @@ private fun MeterRoomCard(
             // ไฟฟ้า
             Text("⚡ มิเตอร์ไฟฟ้า", style = MaterialTheme.typography.labelMedium,
                  color = MaterialTheme.colorScheme.onSurfaceVariant)
-            if (roomState.isFirstEntry) {
-                Text("✏️ ใส่ค่าเริ่มต้นได้เลย",
-                     style = MaterialTheme.typography.labelSmall,
-                     color = MaterialTheme.colorScheme.tertiary)
-            }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
                     value = roomState.electricityPrevious,
-                    onValueChange = if (roomState.isFirstEntry) onElecPreviousChange else { _ -> },
-                    label = { Text(if (roomState.isFirstEntry) "ค่าเริ่มต้น" else "ก่อนหน้า") },
-                    readOnly = !roomState.isFirstEntry,
+                    onValueChange = onElecPreviousChange,
+                    label = { Text("ก่อนหน้า") },
                     modifier = Modifier.weight(1f),
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -172,9 +166,8 @@ private fun MeterRoomCard(
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
                     value = roomState.waterPrevious,
-                    onValueChange = if (roomState.isFirstEntry) onWaterPreviousChange else { _ -> },
-                    label = { Text(if (roomState.isFirstEntry) "ค่าเริ่มต้น" else "ก่อนหน้า") },
-                    readOnly = !roomState.isFirstEntry,
+                    onValueChange = onWaterPreviousChange,
+                    label = { Text("ก่อนหน้า") },
                     modifier = Modifier.weight(1f),
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
